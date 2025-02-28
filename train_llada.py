@@ -28,8 +28,8 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 from transformers import AutoTokenizer
 
-from config_llada import ModelConfig
-from modelling_llada import LLaDAModel
+from llada.config_llada import ModelConfig
+from llada.modelling_llada import LLaDAModel
 
 # -----------------------------------------------------------------------------
 # default config values designed to train a llada model
@@ -80,7 +80,7 @@ dtype = 'bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported
 compile = True # use PyTorch 2.0 to compile the model to be faster
 # -----------------------------------------------------------------------------
 config_keys = [k for k,v in globals().items() if not k.startswith('_') and isinstance(v, (int, float, bool, str))]
-exec(open('configurator.py').read()) # overrides from command line or config file
+exec(open('llada/configurator.py').read()) # overrides from command line or config file
 config = {k: globals()[k] for k in config_keys} # will be useful for logging
 # -----------------------------------------------------------------------------
 
@@ -168,6 +168,7 @@ def forward_process(input_ids, mask_token_id, eps=eps):
     masked_indices = torch.rand((b, l), device=input_ids.device) < p_mask
     
     # Replace masked tokens with mask_token_id
+    # Ensure mask_token_id is valid for the model
     noisy_batch = torch.where(masked_indices, mask_token_id, input_ids)
     
     return noisy_batch, masked_indices, p_mask
@@ -185,36 +186,21 @@ if os.path.exists(meta_path):
     meta_vocab_size = meta['vocab_size']
     print(f"found vocab_size = {meta_vocab_size} (inside {meta_path})")
 
-# Create LLaDA tokenizer
-try:
-    # Try to use the official LLaDA tokenizer
-    tokenizer = AutoTokenizer.from_pretrained("GSAI-ML/LLaDA-8B-Base")
-    print("Using official LLaDA tokenizer from GSAI-ML/LLaDA-8B-Base")
-except:
-    # Fall back to GPT2 tokenizer if LLaDA tokenizer is not available
-    print("LLaDA tokenizer not found, falling back to GPT2 tokenizer")
-    tokenizer = AutoTokenizer.from_pretrained("gpt2")
-    
-# Make sure padding and masking tokens are properly set
-tokenizer.pad_token = tokenizer.eos_token
-# Use the tokenizer's mask token if available, otherwise fall back to EOS token
-if hasattr(tokenizer, 'mask_token_id') and tokenizer.mask_token_id is not None:
-    mask_token_id = tokenizer.mask_token_id
-    print(f"Using tokenizer's mask_token_id: {mask_token_id}")
-else:
-    mask_token_id = tokenizer.eos_token_id
-    print(f"Using eos_token_id as mask_token_id: {mask_token_id}")
-
 # model init
 vocab_size = meta_vocab_size if meta_vocab_size is not None else 50304
+# Make sure embedding_size is large enough (and never smaller than vocab_size)
+embedding_size = max(vocab_size, (vocab_size + 127) // 128 * 128)
+# Make sure mask_token_id is a valid token ID (not outside vocab range)
+effective_mask_token_id = min(mask_token_id, vocab_size - 1)
+
 config = ModelConfig(
     d_model=d_model,
     n_heads=n_heads,
     n_layers=n_layers,
     vocab_size=vocab_size,
     max_sequence_length=block_size,
-    embedding_size=vocab_size,
-    mask_token_id=mask_token_id,
+    embedding_size=embedding_size,
+    mask_token_id=effective_mask_token_id,
     include_bias=bias,
     layer_norm_type="default",
     activation_type="gelu",

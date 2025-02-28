@@ -11,8 +11,8 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset, random_split
 from transformers import AutoTokenizer, get_linear_schedule_with_warmup
 
-from config_llada import ModelConfig
-from modelling_llada import LLaDAModel
+from llada.config_llada import ModelConfig
+from llada.modelling_llada import LLaDAModel
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

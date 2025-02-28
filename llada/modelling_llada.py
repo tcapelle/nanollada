@@ -31,7 +31,7 @@ from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.models.auto import AutoModel
 from transformers.cache_utils import Cache
 
-from config_llada import (
+from llada.config_llada import (
     LLaDAConfig,
     StrEnum,
     InitFnType,
