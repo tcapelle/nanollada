@@ -268,7 +268,7 @@ def estimate_loss():
             X, Y = get_batch(split)
             with ctx:
                 # Apply forward process to add noise
-                noisy_batch, masked_indices, p_mask = forward_process(X, mask_token_id)
+                noisy_batch, masked_indices, p_mask = forward_process(X, effective_mask_token_id)
                 # Get model predictions
                 outputs = model(input_ids=noisy_batch)
                 logits = outputs.logits
@@ -364,7 +364,7 @@ while True:
             model.require_backward_grad_sync = (micro_step == gradient_accumulation_steps - 1)
         with ctx:
             # Apply forward process to add noise
-            noisy_batch, masked_indices, p_mask = forward_process(X, mask_token_id)
+            noisy_batch, masked_indices, p_mask = forward_process(X, effective_mask_token_id)
             # Get model predictions
             outputs = model(input_ids=noisy_batch)
             logits = outputs.logits
