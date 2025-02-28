@@ -193,7 +193,7 @@ embedding_size = max(vocab_size, (vocab_size + 127) // 128 * 128)
 # Make sure mask_token_id is a valid token ID (not outside vocab range)
 effective_mask_token_id = min(mask_token_id, vocab_size - 1)
 
-config = ModelConfig(
+model_config = ModelConfig(
     d_model=d_model,
     n_heads=n_heads,
     n_layers=n_layers,
@@ -217,7 +217,7 @@ config = ModelConfig(
 if init_from == 'scratch':
     # init a new model from scratch
     print("Initializing a new LLaDA model from scratch")
-    model = LLaDAModel(config)
+    model = LLaDAModel(model_config)
     model.to(device)
 elif init_from == 'resume':
     print(f"Resuming training from {out_dir}")
@@ -239,7 +239,7 @@ elif init_from == 'resume':
     model.to(device)
 
 # initialize a GradScaler. If enabled=False scaler is a no-op
-scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
+scaler = torch.amp.GradScaler(enabled=(dtype == 'float16'))
 
 # optimizer
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay, betas=(beta1, beta2))
